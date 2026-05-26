@@ -8,7 +8,10 @@ const { authRoutes, recordGameResult, verifyToken } = require('./auth');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  transports: ['polling', 'websocket'],
+  cors: { origin: '*' }
+});
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -192,8 +195,10 @@ io.on('connection', (socket) => {
     const idx = waitingMatch.indexOf(socket.id);
     if (idx !== -1) return;
 
+    console.log(`[MM] ${socket.id} joined queue (queue size: ${waitingMatch.length})`);
     if (waitingMatch.length > 0) {
       const opponentId = waitingMatch.shift();
+      console.log(`[MM] Matched ${opponentId} with ${socket.id}`);
       const roomId = 'MATCH-' + socket.id.substring(0, 4) + '-' + opponentId.substring(0, 4);
 
       rooms[roomId] = {
@@ -219,6 +224,7 @@ io.on('connection', (socket) => {
       });
     } else {
       waitingMatch.push(socket.id);
+      console.log(`[MM] ${socket.id} waiting in queue (queue size: ${waitingMatch.length})`);
       socket.emit('matchmaking-waiting');
     }
   });

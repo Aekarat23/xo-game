@@ -837,7 +837,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = io({ transports: ['polling', 'websocket'] });
 
     let currentRoomId = null;
     let myMark = null;
