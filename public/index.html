@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XO Game - เกม XO</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://upload-widget.cloudinary.com/global/all.js" async defer></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ===== 3D XO BACKGROUND ===== */
+    #bgCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      background: radial-gradient(ellipse at 50% 50%, #1a1040 0%, #0a0a1a 50%, #050510 100%);
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    /* Floating glow orbs */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+      animation: orbFloat 20s ease-in-out infinite;
+    }
+    .glow-orb.o1 {
+      width: 400px; height: 400px;
+      background: #ff4444;
+      top: -10%; left: -10%;
+      animation-duration: 25s;
+    }
+    .glow-orb.o2 {
+      width: 350px; height: 350px;
+      background: #44aaff;
+      bottom: -15%; right: -10%;
+      animation-duration: 30s;
+      animation-delay: -5s;
+    }
+    .glow-orb.o3 {
+      width: 250px; height: 250px;
+      background: #aa44ff;
+      top: 50%; left: 50%;
+      animation-duration: 20s;
+      animation-delay: -10s;
+    }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(80px, -60px) scale(1.1); }
+      50% { transform: translate(-40px, 80px) scale(0.9); }
+      75% { transform: translate(60px, 40px) scale(1.05); }
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .content-wrapper {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      margin-bottom: 0.3rem;
+      background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 4s ease-in-out infinite;
+      text-shadow: none;
+      filter: drop-shadow(0 0 30px rgba(100, 100, 255, 0.3));
+    }
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .subtitle {
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      text-shadow: 0 0 20px rgba(100,100,255,0.2);
+    }
+
+    /* --- TOP BAR --- */
+    #topBar {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: rgba(10,10,30,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 0.6rem 1.5rem;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 50;
+    }
+    #topBar.active { display: flex; }
+    .user-info { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
+    .user-info:hover .user-avatar { box-shadow: 0 0 20px rgba(155, 89, 182, 0.6); transform: scale(1.05); }
+    .user-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b6b, #9b59b6);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem;
+      box-shadow: 0 0 15px rgba(155, 89, 182, 0.4);
+      overflow: hidden; transition: all 0.2s;
+    }
+    .user-name { font-weight: 600; }
+    .user-stats { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+    .user-info .edit-hint { font-size: 0.7rem; color: rgba(255,255,255,0.25); }
+
+    /* --- PROFILE PANEL --- */
+    .profile-panel {
+      display: none; flex-direction: column; align-items: center; gap: 1rem;
+      width: 360px;
+    }
+    .profile-panel.active { display: flex; }
+    .profile-avatar-wrap {
+      position: relative; width: 100px; height: 100px;
+    }
+    .profile-avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; font-weight: 700;
+      box-shadow: 0 0 25px rgba(102, 126, 234, 0.4);
+      overflow: hidden;
+    }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .profile-avatar-camera {
+      position: absolute; bottom: 0; right: 0;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #6bcb77, #4d96ff);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    .profile-avatar-camera:hover { transform: scale(1.15); }
+    .profile-form { width: 100%; display: flex; flex-direction: column; gap: 0.8rem; }
+    .profile-form label { font-size: 0.85rem; color: rgba(255,255,255,0.5); }
+    .profile-form input[type="text"] {
+      width: 100%; padding: 0.8rem 1rem;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      background: rgba(255,255,255,0.05); color: #fff; font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .profile-form input[type="text"]:focus { outline: none; border-color: rgba(107,203,119,0.6); background: rgba(255,255,255,0.08); }
+    .profile-save-btn {
+      width: 100%; padding: 0.9rem; border: none; border-radius: 14px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      background: linear-gradient(135deg, #6bcb77, #4d96ff);
+      color: #fff; transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(107,203,119,0.3);
+    }
+    .profile-save-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(107,203,119,0.5); }
+    .profile-save-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .profile-success { color: #6bcb77; font-size: 0.9rem; text-align: center; min-height: 1.2rem; }
+    .logout-btn {
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    /* --- GLASS PANELS --- */
+    .menu, .panel, .leaderboard-panel {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    /* --- MENU --- */
+    .menu { display: flex; flex-direction: column; gap: 0.8rem; width: 340px; padding: 2rem; }
+    .menu-btn {
+      padding: 1rem 2rem; border: none; border-radius: 14px;
+      font-size: 1.1rem; font-weight: 600; cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #fff; position: relative; overflow: hidden;
+    }
+    .menu-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s;
+    }
+    .menu-btn:hover::before { left: 100%; }
+    .menu-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .menu-btn:active { transform: translateY(-1px); }
+
+    .btn-bot {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .btn-bot:hover { box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5); }
+
+    .btn-match {
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+      box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+    }
+    .btn-match:hover { box-shadow: 0 8px 25px rgba(245, 87, 108, 0.5); }
+
+    .btn-room {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+    .btn-room:hover { box-shadow: 0 8px 25px rgba(79, 172, 254, 0.5); }
+
+    .btn-leaderboard {
+      background: linear-gradient(135deg, #ffd93d, #ff6b6b);
+      color: #1a1a2e;
+      box-shadow: 0 4px 15px rgba(255, 217, 61, 0.3);
+    }
+    .btn-leaderboard:hover { box-shadow: 0 8px 25px rgba(255, 217, 61, 0.5); }
+
+    .btn-login {
+      background: linear-gradient(135deg, #6bcb77, #4d96ff);
+      box-shadow: 0 4px 15px rgba(107, 203, 119, 0.3);
+    }
+    .btn-login:hover { box-shadow: 0 8px 25px rgba(107, 203, 119, 0.5); }
+
+    .btn-register {
+      background: linear-gradient(135deg, #ff9a56, #ffcd67);
+      color: #1a1a2e;
+      box-shadow: 0 4px 15px rgba(255, 154, 86, 0.3);
+    }
+    .btn-register:hover { box-shadow: 0 8px 25px rgba(255, 154, 86, 0.5); }
+
+    /* --- LOADING OVERLAY --- */
+    .loading-overlay {
+      display: none; position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5,5,16,0.92);
+      backdrop-filter: blur(12px);
+      align-items: center; justify-content: center; flex-direction: column; gap: 1.5rem;
+      z-index: 200; opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .loading-overlay.active { display: flex; opacity: 1; }
+    .loading-text { font-size: 1.2rem; color: rgba(255,255,255,0.7); }
+
+    /* --- PANELS --- */
+    .panel {
+      display: none; flex-direction: column; align-items: center;
+      gap: 1rem; width: 340px;
+    }
+    .panel.active { display: flex; }
+    .back-btn {
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.9rem;
+      align-self: flex-start; transition: all 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .status-text { font-size: 1.1rem; color: rgba(255,255,255,0.6); text-align: center; }
+
+    /* --- AUTH FORMS --- */
+    .auth-form { width: 100%; display: flex; flex-direction: column; gap: 0.8rem; }
+    .auth-form input {
+      width: 100%; padding: 0.8rem 1rem;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      background: rgba(255,255,255,0.05); color: #fff; font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .auth-form input:focus { outline: none; border-color: rgba(107,203,119,0.6); background: rgba(255,255,255,0.08); }
+    .auth-form input::placeholder { color: rgba(255,255,255,0.25); }
+    .auth-form .menu-btn { width: 100%; padding: 0.8rem 1.5rem; font-size: 1rem; }
+    .auth-error { color: #ff6b6b; font-size: 0.9rem; text-align: center; min-height: 1.2rem; }
+    .auth-switch { color: rgba(255,255,255,0.4); font-size: 0.9rem; text-align: center; }
+    .auth-switch span { color: #6bcb77; cursor: pointer; text-decoration: underline; }
+
+    /* --- ROOM --- */
+    .room-id-display {
+      font-size: 2.5rem; font-weight: 700; letter-spacing: 0.3em;
+      color: #ffd93d; background: rgba(255,217,61,0.08);
+      padding: 0.8rem 1.5rem; border-radius: 14px;
+      border: 2px solid rgba(255,217,61,0.25);
+      text-shadow: 0 0 20px rgba(255,217,61,0.3);
+    }
+    .copy-btn {
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .ready-btn {
+      width: 100%; padding: 1rem; border: none; border-radius: 14px;
+      font-size: 1.2rem; font-weight: 700; cursor: pointer;
+      background: linear-gradient(135deg, #6bcb77, #4d96ff);
+      color: #fff; transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(107,203,119,0.3);
+    }
+    .ready-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(107,203,119,0.5); }
+    .ready-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* --- GAME BOARD --- */
+    .game-container { display: none; flex-direction: column; align-items: center; gap: 1.5rem; }
+    .game-container.active { display: flex; }
+    .game-info { display: flex; align-items: center; gap: 1.5rem; font-size: 1.1rem; }
+    .player-badge {
+      padding: 0.5rem 1rem; border-radius: 12px; font-weight: 600;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.3s; backdrop-filter: blur(10px);
+    }
+    .player-badge.active {
+      border-color: rgba(255,217,61,0.5);
+      box-shadow: 0 0 20px rgba(255,217,61,0.2), inset 0 0 20px rgba(255,217,61,0.05);
+    }
+    .mark-x { color: #ff6b6b; }
+    .mark-o { color: #4d96ff; }
+    .vs-text { color: rgba(255,255,255,0.25); font-weight: 700; }
+    .board {
+      display: grid; grid-template-columns: repeat(3, 100px); grid-template-rows: repeat(3, 100px);
+      gap: 8px; background: rgba(255,255,255,0.03);
+      padding: 8px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .cell {
+      width: 100px; height: 100px; background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; font-weight: 700; cursor: pointer;
+      transition: all 0.2s; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .cell:not(.taken):hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.15);
+      transform: scale(1.03);
+    }
+    .cell.taken { cursor: default; }
+    .cell.x-mark { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); }
+    .cell.o-mark { color: #4d96ff; text-shadow: 0 0 20px rgba(77,150,255,0.5); }
+    .cell.win {
+      background: rgba(255,217,61,0.1);
+      border-color: rgba(255,217,61,0.4);
+      box-shadow: 0 0 20px rgba(255,217,61,0.15);
+    }
+    .turn-indicator { font-size: 1rem; color: rgba(255,255,255,0.35); min-height: 1.5rem; }
+    .turn-indicator.my-turn { color: #ffd93d; font-weight: 600; text-shadow: 0 0 15px rgba(255,217,61,0.3); }
+
+    /* --- OVERLAYS --- */
+    .overlay {
+      display: none; position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5,5,16,0.9);
+      backdrop-filter: blur(10px);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .overlay.active { display: flex; }
+    .countdown-number {
+      font-size: 8rem; font-weight: 900; color: #ffd93d;
+      animation: pulse 1s ease-in-out;
+      text-shadow: 0 0 40px rgba(255,217,61,0.4);
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: 0; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .result-overlay {
+      flex-direction: column; gap: 0.8rem;
+      opacity: 0; transform: scale(0.7);
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+    .result-overlay.active {
+      opacity: 1; transform: scale(1);
+      pointer-events: auto;
+    }
+    .result-overlay.win-result { background: radial-gradient(ellipse at 50% 30%, rgba(107,203,119,0.25) 0%, rgba(5,5,16,0.95) 70%); }
+    .result-overlay.lose-result { background: radial-gradient(ellipse at 50% 30%, rgba(255,107,107,0.2) 0%, rgba(5,5,16,0.95) 70%); }
+    .result-overlay.lose-result .result-emoji {
+      animation: emojiShake 0.6s ease-in-out 0.3s both;
+    }
+    @keyframes emojiShake {
+      0%, 100% { transform: translateX(0) rotate(0deg); }
+      15% { transform: translateX(-12px) rotate(-8deg); }
+      30% { transform: translateX(10px) rotate(6deg); }
+      45% { transform: translateX(-8px) rotate(-4deg); }
+      60% { transform: translateX(6px) rotate(3deg); }
+      75% { transform: translateX(-3px) rotate(-2deg); }
+      90% { transform: translateX(2px) rotate(1deg); }
+    }
+    .result-overlay.win-result .result-emoji {
+      animation: emojiFloat 2s ease-in-out 0.8s infinite;
+    }
+    @keyframes emojiFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-12px) scale(1.08); }
+    }
+    .result-overlay.draw-result { background: radial-gradient(ellipse at 50% 30%, rgba(255,217,61,0.15) 0%, rgba(5,5,16,0.95) 70%); }
+    #resultCanvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 1;
+    }
+    .result-emoji {
+      font-size: 4rem; z-index: 2; position: relative;
+      animation: emojiBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+      filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+    }
+    .result-emoji::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 120px; height: 120px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      z-index: -1;
+      animation: ringPulse 2s ease-out infinite;
+    }
+    .win-result .result-emoji::after {
+      background: radial-gradient(circle, rgba(107,203,119,0.4) 0%, transparent 70%);
+      box-shadow: 0 0 40px rgba(107,203,119,0.3);
+    }
+    .lose-result .result-emoji::after {
+      background: radial-gradient(circle, rgba(255,107,107,0.3) 0%, transparent 70%);
+      box-shadow: 0 0 40px rgba(255,107,107,0.2);
+    }
+    .draw-result .result-emoji::after {
+      background: radial-gradient(circle, rgba(255,217,61,0.3) 0%, transparent 70%);
+    }
+    @keyframes ringPulse {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+    }
+    @keyframes emojiBounce {
+      0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+      60% { transform: scale(1.3) rotate(5deg); opacity: 1; }
+      80% { transform: scale(0.9) rotate(-3deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .result-text {
+      font-size: 2.8rem; font-weight: 900; z-index: 2;
+      letter-spacing: 0.05em;
+      animation: textSlideUp 0.6s ease-out 0.5s both;
+    }
+    .result-text.win { color: #6bcb77; text-shadow: 0 0 40px rgba(107,203,119,0.6), 0 0 80px rgba(107,203,119,0.3); }
+    .result-text.lose { color: #ff6b6b; text-shadow: 0 0 40px rgba(255,107,107,0.6), 0 0 80px rgba(255,107,107,0.3); }
+    .result-text.draw { color: #ffd93d; text-shadow: 0 0 40px rgba(255,217,61,0.6), 0 0 80px rgba(255,217,61,0.3); }
+    @keyframes textSlideUp {
+      0% { transform: translateY(30px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .result-sub {
+      font-size: 1rem; color: rgba(255,255,255,0.5); z-index: 2;
+      animation: textSlideUp 0.6s ease-out 0.7s both;
+    }
+    .play-again-btn {
+      padding: 1rem 3rem; border: none; border-radius: 14px;
+      font-size: 1.1rem; font-weight: 600; cursor: pointer;
+      background: linear-gradient(135deg, #6bcb77, #4d96ff);
+      color: #fff; transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(107,203,119,0.3);
+      z-index: 2;
+      animation: textSlideUp 0.6s ease-out 0.9s both;
+    }
+    .play-again-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(107,203,119,0.5); }
+    .result-overlay.lose-result .play-again-btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      box-shadow: 0 4px 15px rgba(255,107,107,0.3);
+    }
+    .result-overlay.lose-result .play-again-btn:hover {
+      box-shadow: 0 8px 25px rgba(255,107,107,0.5);
+    }
+    .result-overlay.draw-result .play-again-btn {
+      background: linear-gradient(135deg, #ffd93d, #ff9f43);
+      color: #1a1a2e;
+      box-shadow: 0 4px 15px rgba(255,217,61,0.3);
+    }
+    .result-overlay.draw-result .play-again-btn:hover {
+      box-shadow: 0 8px 25px rgba(255,217,61,0.5);
+    }
+
+    /* --- LEADERBOARD --- */
+    .leaderboard-panel {
+      display: none; flex-direction: column; align-items: center; gap: 1rem;
+      width: 420px; max-height: 80vh;
+    }
+    .leaderboard-panel.active { display: flex; }
+    .lb-tabs { display: flex; gap: 0.5rem; }
+    .lb-tab {
+      padding: 0.5rem 1.2rem; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4);
+      cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+    }
+    .lb-tab.active {
+      background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,107,107,0.2));
+      color: #ffd93d; font-weight: 600;
+      border-color: rgba(255,217,61,0.3);
+    }
+    .lb-list {
+      width: 100%; overflow-y: auto; max-height: 55vh;
+      display: flex; flex-direction: column; gap: 0.4rem;
+      padding-right: 4px;
+    }
+    .lb-list::-webkit-scrollbar { width: 4px; }
+    .lb-list::-webkit-scrollbar-track { background: transparent; }
+    .lb-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    .lb-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.9rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px; transition: all 0.2s;
+    }
+    .lb-item:hover { background: rgba(255,255,255,0.06); }
+    .lb-avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.9rem; overflow: hidden;
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.25);
+    }
+    .lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .lb-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .lb-rank.r1 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; box-shadow: 0 0 12px rgba(255,217,0,0.3); }
+    .lb-rank.r2 { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #000; }
+    .lb-rank.r3 { background: linear-gradient(135deg, #cd7f32, #b87333); color: #000; }
+    .lb-rank.rn { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); }
+    .lb-name { flex: 1; font-weight: 600; min-width: 0; }
+    .lb-name span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lb-name small { color: rgba(255,255,255,0.3); font-weight: 400; font-size: 0.75rem; }
+    .lb-score { text-align: right; flex-shrink: 0; }
+    .lb-points { font-weight: 700; color: #ffd93d; text-shadow: 0 0 10px rgba(255,217,61,0.3); }
+    .lb-detail { font-size: 0.7rem; color: rgba(255,255,255,0.25); }
+    .lb-empty { color: rgba(255,255,255,0.25); text-align: center; padding: 2rem; }
+    .lb-reset-info { font-size: 0.8rem; color: rgba(255,255,255,0.2); text-align: center; }
+
+    /* --- SPINNER --- */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.08);
+      border-top-color: #ffd93d;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .waiting-text { color: rgba(255,255,255,0.35); animation: blink 1.5s ease-in-out infinite; }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* --- SOUND SETTINGS --- */
+    .sound-toggle { position:relative; width:48px; height:26px; display:inline-block; flex-shrink:0; }
+    .sound-toggle input { opacity:0; width:0; height:0; }
+    .sound-toggle-slider {
+      position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+      background:rgba(255,255,255,0.1); border-radius:26px; transition:0.3s;
+    }
+    .sound-toggle-slider:before {
+      content:''; position:absolute; height:20px; width:20px; left:3px; bottom:3px;
+      background:#fff; border-radius:50%; transition:0.3s;
+    }
+    .sound-toggle input:checked + .sound-toggle-slider { background:linear-gradient(135deg,#6bcb77,#4d96ff); }
+    .sound-toggle input:checked + .sound-toggle-slider:before { transform:translateX(22px); }
+    .sound-slider-row { display:flex; align-items:center; gap:0.8rem; }
+    .sound-slider-row span:first-child { font-size:0.9rem; font-weight:600; min-width:110px; }
+    .sound-slider { flex:1; -webkit-appearance:none; height:6px; border-radius:3px; background:rgba(255,255,255,0.1); outline:none; }
+    .sound-slider::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:linear-gradient(135deg,#6bcb77,#4d96ff); cursor:pointer; box-shadow:0 0 8px rgba(107,203,119,0.4); }
+    .sound-val { font-size:0.8rem; color:rgba(255,255,255,0.4); min-width:35px; text-align:right; }
+    .sound-test-btn {
+      padding:0.4rem 0.7rem; border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+      background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.6); cursor:pointer;
+      font-size:0.8rem; transition:all 0.2s;
+    }
+    .sound-test-btn:hover { background:rgba(255,255,255,0.12); color:#fff; transform:translateY(-1px); }
+    .mute-btn {
+      background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.5);
+      border:1px solid rgba(255,255,255,0.1); padding:0.4rem 0.7rem;
+      border-radius:8px; cursor:pointer; font-size:1rem;
+      transition:all 0.2s; margin-right:0.5rem;
+    }
+    .mute-btn:hover { background:rgba(255,255,255,0.15); color:#fff; }
+  </style>
+</head>
+<body>
+
+  <!-- 3D XO BACKGROUND -->
+  <canvas id="bgCanvas"></canvas>
+  <div class="glow-orb o1"></div>
+  <div class="glow-orb o2"></div>
+  <div class="glow-orb o3"></div>
+
+  <!-- TOP BAR (logged in) -->
+  <div id="topBar">
+    <div class="user-info" onclick="showProfilePanel()">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div>
+        <div class="user-name" id="topBarName"></div>
+        <div class="user-stats" id="topBarStats"></div>
+      </div>
+      <span class="edit-hint">✏️</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <button class="mute-btn" id="muteBtn" onclick="Sound.toggleMaster()" title="เปิด/ปิดเสียง">🔊</button>
+      <button class="menu-btn btn-leaderboard" style="padding:0.4rem 0.8rem;font-size:0.85rem;" onclick="showPanel('soundPanel')">🔊 เสียง</button>
+      <button class="logout-btn" onclick="logout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="content-wrapper">
+  <h1>XO Game</h1>
+  <p class="subtitle">เกม XO - ผู้ชนะได้รางวัลเป็น... ความสนุก!</p>
+
+  <!-- MAIN MENU -->
+  <div class="menu" id="mainMenu">
+    <button class="menu-btn btn-bot" onclick="startBot()">🤖 เล่นกับบอท</button>
+    <button class="menu-btn btn-match" onclick="showPanel('matchPanel')">⚡ จับคู่แบบสุ่ม</button>
+    <button class="menu-btn btn-room" onclick="showPanel('createRoomPanel')">🏠 สร้างห้อง</button>
+    <button class="menu-btn btn-room" onclick="showPanel('joinRoomPanel')" style="background:linear-gradient(135deg,#fa709a,#fee140);">🚪 เข้าร่วมห้อง</button>
+    <button class="menu-btn btn-leaderboard" onclick="showLeaderboard()">🏆 อันดับคะแนน</button>
+    <button class="menu-btn" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb);" onclick="showPanel('soundPanel')">🔊 ตั้งค่าเสียง</button>
+    <div id="authButtons" style="display:flex;gap:0.5rem;width:100%;">
+      <button class="menu-btn btn-login" onclick="showPanel('loginPanel')" style="flex:1;padding:0.7rem 1rem;font-size:0.95rem;">🔑 เข้าสู่ระบบ</button>
+      <button class="menu-btn btn-register" onclick="showPanel('registerPanel')" style="flex:1;padding:0.7rem 1rem;font-size:0.95rem;">📝 สมัครสมาชิก</button>
+    </div>
+  </div>
+
+  <!-- PROFILE PANEL -->
+  <div class="panel profile-panel" id="profilePanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">👤 โปรไฟล์ของฉัน</div>
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="profileAvatar">?</div>
+      <div class="profile-avatar-camera" onclick="openCloudinaryWidget()" title="เปลี่ยนรูปโปรไฟล์">📷</div>
+    </div>
+    <form class="profile-form" onsubmit="saveProfile(event)">
+      <label>ชื่อที่แสดง</label>
+      <input type="text" id="profileDisplayName" placeholder="ชื่อที่แสดง" maxlength="50">
+      <label>อีเมล</label>
+      <input type="text" id="profileEmail" disabled placeholder="ไม่ระบุ" style="opacity:0.5;">
+      <div class="profile-success" id="profileSuccess"></div>
+      <button type="submit" class="profile-save-btn" id="profileSaveBtn">💾 บันทึก</button>
+    </form>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.2);text-align:center;margin-top:0.3rem;">รูปโปรไฟล์จะถูกเก็บบน Cloudinary</div>
+  </div>
+
+  <!-- LOGIN PANEL -->
+  <div class="panel" id="loginPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">เข้าสู่ระบบ</div>
+    <form class="auth-form" onsubmit="doLogin(event)">
+      <input type="text" id="loginUsername" placeholder="ชื่อผู้ใช้" required>
+      <input type="password" id="loginPassword" placeholder="รหัสผ่าน" required>
+      <div class="auth-error" id="loginError"></div>
+      <button type="submit" class="menu-btn btn-login">เข้าสู่ระบบ</button>
+    </form>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <span style="color:rgba(255,255,255,0.3);font-size:0.85rem;">หรือ</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+    </div>
+    <div id="googleSignInBtn" style="width:100%;"></div>
+    <div class="auth-error" id="googleLoginError"></div>
+    <div class="auth-switch">ยังไม่มีบัญชี? <span onclick="showPanel('registerPanel')">สมัครสมาชิก</span></div>
+  </div>
+
+  <!-- REGISTER PANEL -->
+  <div class="panel" id="registerPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">สมัครสมาชิก</div>
+    <form class="auth-form" onsubmit="doRegister(event)">
+      <input type="text" id="regUsername" placeholder="ชื่อผู้ใช้" required minlength="3" maxlength="30">
+      <input type="text" id="regDisplayName" placeholder="ชื่อที่แสดง (ไม่บังคับ)">
+      <input type="password" id="regPassword" placeholder="รหัสผ่าน" required minlength="4">
+      <div class="auth-error" id="regError"></div>
+      <button type="submit" class="menu-btn btn-register">สมัครสมาชิก</button>
+    </form>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0;">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+      <span style="color:rgba(255,255,255,0.3);font-size:0.85rem;">หรือ</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+    </div>
+    <div id="googleSignInBtnRegister" style="width:100%;"></div>
+    <div class="auth-switch">มีบัญชีแล้ว? <span onclick="showPanel('loginPanel')">เข้าสู่ระบบ</span></div>
+  </div>
+
+  <!-- SOUND SETTINGS PANEL -->
+  <div class="panel" id="soundPanel" style="width:340px;gap:1.2rem;">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">🔊 ตั้งค่าเสียง</div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:600;">🔇 ปิด/เปิดเสียงทั้งหมด</span>
+        <label class="sound-toggle">
+          <input type="checkbox" id="soundMaster" checked onchange="Sound.toggleMaster(this.checked)">
+          <span class="sound-toggle-slider"></span>
+        </label>
+      </div>
+      <div style="width:100%;height:1px;background:rgba(255,255,255,0.06);"></div>
+      <div class="sound-slider-row">
+        <span>🎵 เพลงพื้นหลัง</span>
+        <input type="range" id="soundBgm" min="0" max="100" value="40" class="sound-slider" oninput="Sound.setBgmVolume(this.value)">
+        <span class="sound-val" id="soundBgmVal">40%</span>
+      </div>
+      <div class="sound-slider-row">
+        <span>🎮 เสียงเอฟเฟกต์</span>
+        <input type="range" id="soundSfx" min="0" max="100" value="70" class="sound-slider" oninput="Sound.setSfxVolume(this.value)">
+        <span class="sound-val" id="soundSfxVal">70%</span>
+      </div>
+      <div style="width:100%;height:1px;background:rgba(255,255,255,0.06);"></div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <span style="font-size:0.85rem;color:rgba(255,255,255,0.4);">ทดสอบเสียง:</span>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="sound-test-btn" onclick="Sound.test('click')">🔘 คลิก</button>
+          <button class="sound-test-btn" onclick="Sound.test('place')">✏️ วาง</button>
+          <button class="sound-test-btn" onclick="Sound.test('win')">🏆 ชนะ</button>
+          <button class="sound-test-btn" onclick="Sound.test('lose')">💀 แพ้</button>
+          <button class="sound-test-btn" onclick="Sound.test('draw')">🤝 เสมอ</button>
+          <button class="sound-test-btn" onclick="Sound.test('countdown')">⏱️ นับ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MATCHMAKING PANEL -->
+  <div class="panel" id="matchPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text" id="matchStatus">กำลังค้นหาคู่แข่ง...</div>
+    <div class="spinner" id="matchSpinner"></div>
+    <button class="menu-btn" style="background:#333;color:#aaa;" onclick="cancelMatchmaking()">ยกเลิก</button>
+  </div>
+
+  <!-- CREATE ROOM PANEL -->
+  <div class="panel" id="createRoomPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text" id="createRoomStatus">กดสร้างห้องเพื่อเริ่ม</div>
+    <button class="menu-btn btn-room" onclick="createRoom()">สร้างห้อง</button>
+    <div id="createRoomInfo" style="display:none;flex-direction:column;align-items:center;gap:0.8rem;">
+      <div class="room-id-display" id="createdRoomId"></div>
+      <button class="copy-btn" onclick="copyRoomId()">📋 คัดลอกรหัสห้อง</button>
+      <div class="waiting-text" id="createRoomWaiting">กำลังรอคู่แข่ง...</div>
+      <div id="createRoomOpponent" style="display:none;color:#00e676;font-weight:600;"></div>
+      <button class="ready-btn" id="createReadyBtn" style="display:none;" onclick="playerReady()">✅ พร้อม!</button>
+    </div>
+  </div>
+
+  <!-- JOIN ROOM PANEL -->
+  <div class="panel" id="joinRoomPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">กรอกรหัสห้อง</div>
+    <input type="text" id="joinRoomInput" placeholder="XXXXXX" maxlength="6" style="text-transform:uppercase;text-align:center;letter-spacing:0.2em;">
+    <button class="menu-btn btn-room" onclick="joinRoom()">เข้าร่วม</button>
+    <div id="joinRoomInfo" style="display:none;flex-direction:column;align-items:center;gap:0.8rem;">
+      <div class="waiting-text" id="joinRoomWaiting">รอเจ้าของห้อง...</div>
+      <div id="joinRoomOpponent" style="display:none;color:#00e676;font-weight:600;"></div>
+      <button class="ready-btn" id="joinReadyBtn" style="display:none;" onclick="playerReady()">✅ พร้อม!</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD PANEL -->
+  <div class="leaderboard-panel" id="leaderboardPanel">
+    <button class="back-btn" onclick="backToMenu()">← กลับ</button>
+    <div class="status-text">🏆 อันดับคะแนน</div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" onclick="switchLbTab('weekly')">สัปดาห์นี้</button>
+      <button class="lb-tab" onclick="switchLbTab('allTime')">ทั้งหมด</button>
+    </div>
+    <div class="lb-list" id="lbList"></div>
+    <div class="lb-reset-info" id="lbResetInfo"></div>
+  </div>
+
+  <!-- GAME BOARD -->
+  <div class="game-container" id="gameContainer">
+    <div class="game-info">
+      <div class="player-badge" id="playerXBadge">
+        <span class="mark-x">X</span> <span id="playerXName">ผู้เล่น 1</span>
+      </div>
+      <span class="vs-text">VS</span>
+      <div class="player-badge" id="playerOBadge">
+        <span class="mark-o">O</span> <span id="playerOName">ผู้เล่น 2</span>
+      </div>
+    </div>
+    <div class="board" id="board">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+    <div class="turn-indicator" id="turnIndicator"></div>
+  </div>
+
+  <!-- LOADING OVERLAY -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">กำลังเข้าสู่ระบบ...</div>
+  </div>
+
+  <!-- COUNTDOWN OVERLAY -->
+  <div class="overlay" id="countdownOverlay">
+    <div class="countdown-number" id="countdownNumber">5</div>
+  </div>
+
+  <!-- RESULT OVERLAY -->
+  <div class="overlay result-overlay" id="resultOverlay">
+    <canvas id="resultCanvas"></canvas>
+    <div class="result-emoji" id="resultEmoji"></div>
+    <div class="result-text" id="resultText"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="play-again-btn" onclick="playAgain()">เล่นอีกครั้ง</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    let currentRoomId = null;
+    let myMark = null;
+    let isMyTurn = false;
+    let gameMode = null;
+    let currentUser = null;
+    let lbMode = 'weekly';
+
+    // --- AUTH REQUIRED HANDLER ---
+    socket.on('auth-required', ({ message }) => {
+      Sound.playLose();
+      showPanel('loginPanel');
+      document.getElementById('loginError').textContent = message || 'กรุณาเข้าสู่ระบบก่อนเล่น';
+    });
+
+    // --- AUTH ---
+    function saveAuth(token, player) {
+      localStorage.setItem('xo_token', token);
+      localStorage.setItem('xo_player', JSON.stringify(player));
+      currentUser = player;
+      updateAuthUI();
+    }
+
+    function clearAuth() {
+      localStorage.removeItem('xo_token');
+      localStorage.removeItem('xo_player');
+      currentUser = null;
+      updateAuthUI();
+    }
+
+    function updateAuthUI() {
+      const token = localStorage.getItem('xo_token');
+      const playerStr = localStorage.getItem('xo_player');
+      if (token && playerStr) {
+        currentUser = JSON.parse(playerStr);
+        document.getElementById('authButtons').style.display = 'none';
+        document.getElementById('topBar').classList.add('active');
+        document.getElementById('topBarName').textContent = currentUser.display_name || currentUser.username;
+        const avatarEl = document.getElementById('userAvatar');
+        if (currentUser.avatar_url) {
+          avatarEl.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+          avatarEl.textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase();
+        }
+        socket.emit('auth', { token });
+        fetchProfile();
+      } else {
+        document.getElementById('authButtons').style.display = 'flex';
+        document.getElementById('topBar').classList.remove('active');
+      }
+    }
+
+    async function fetchProfile() {
+      const token = localStorage.getItem('xo_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('topBarStats').textContent = `ชนะ ${data.stats.wins} | แพ้ ${data.stats.losses} | เสมอ ${data.stats.draws}`;
+        }
+      } catch {}
+    }
+
+    async function doLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+      showLoading('กำลังเข้าสู่ระบบ...');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { hideLoading(); errorEl.textContent = data.error; return; }
+        saveAuth(data.token, data.player);
+        document.getElementById('loadingText').textContent = 'เข้าสู่ระบบสำเร็จ!';
+        Sound.playWin();
+        await new Promise(r => setTimeout(r, 600));
+        hideLoading();
+        backToMenu();
+      } catch { hideLoading(); errorEl.textContent = 'เกิดข้อผิดพลาด'; }
+    }
+
+    async function doRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('regUsername').value.trim();
+      const display_name = document.getElementById('regDisplayName').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const errorEl = document.getElementById('regError');
+      errorEl.textContent = '';
+      showLoading('กำลังสมัครสมาชิก...');
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, display_name: display_name || username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { hideLoading(); errorEl.textContent = data.error; return; }
+        saveAuth(data.token, data.player);
+        document.getElementById('loadingText').textContent = 'สมัครสมาชิกสำเร็จ!';
+        Sound.playWin();
+        await new Promise(r => setTimeout(r, 600));
+        hideLoading();
+        backToMenu();
+      } catch { hideLoading(); errorEl.textContent = 'เกิดข้อผิดพลาด'; }
+    }
+
+    function logout() {
+      Sound.playClick();
+      clearAuth();
+      socket.disconnect();
+      location.reload();
+    }
+
+
+    // --- SOUND MANAGER ---
+    const Sound = (() => {
+      let ctx = null;
+      let masterEnabled = true;
+      let bgmVolume = 0.4;
+      let sfxVolume = 0.7;
+      let bgmNode = null;
+      let bgmGain = null;
+
+      function getCtx() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      }
+
+      function playTone(freq, duration, type, vol, delay) {
+        if (!masterEnabled) return;
+        const c = getCtx();
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, c.currentTime + (delay || 0));
+        const v = (vol || 0.3) * sfxVolume;
+        gain.gain.setValueAtTime(v, c.currentTime + (delay || 0));
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + (delay || 0) + duration);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(c.currentTime + (delay || 0));
+        osc.stop(c.currentTime + (delay || 0) + duration);
+      }
+
+      function playChord(freqs, duration, type, vol) {
+        freqs.forEach((f, i) => playTone(f, duration, type, vol, i * 0.02));
+      }
+
+      function playNoise(duration, vol) {
+        if (!masterEnabled) return;
+        const c = getCtx();
+        const bufferSize = c.sampleRate * duration;
+        const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+        const source = c.createBufferSource();
+        source.buffer = buffer;
+        const gain = c.createGain();
+        gain.gain.setValueAtTime((vol || 0.15) * sfxVolume, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+        source.connect(gain);
+        gain.connect(c.destination);
+        source.start();
+      }
+
+      return {
+        playClick() { playTone(800, 0.08, 'square', 0.15); },
+
+        playPlace(mark) {
+          if (mark === 'X') { playTone(520, 0.12, 'sine', 0.25); playTone(780, 0.1, 'sine', 0.15, 0.05); }
+          else { playTone(440, 0.12, 'triangle', 0.25); playTone(660, 0.1, 'triangle', 0.15, 0.05); }
+        },
+
+        playWin() {
+          playChord([523, 659, 784], 0.4, 'sine', 0.3);
+          setTimeout(() => playChord([659, 784, 1047], 0.5, 'sine', 0.35), 150);
+          setTimeout(() => playChord([784, 1047, 1319], 0.6, 'sine', 0.4), 350);
+        },
+
+        playLose() {
+          playTone(330, 0.3, 'sawtooth', 0.2);
+          setTimeout(() => playTone(260, 0.3, 'sawtooth', 0.2), 200);
+          setTimeout(() => playTone(196, 0.5, 'sawtooth', 0.25), 400);
+        },
+
+        playDraw() {
+          playChord([440, 554], 0.3, 'triangle', 0.2);
+          setTimeout(() => playChord([440, 523], 0.3, 'triangle', 0.2), 250);
+          setTimeout(() => playChord([392, 494], 0.4, 'triangle', 0.25), 500);
+        },
+
+        playCountdown() { playTone(600, 0.1, 'square', 0.15); },
+        playGo() { playTone(880, 0.2, 'square', 0.25); playTone(1100, 0.15, 'square', 0.2, 0.1); },
+
+        playMatchFound() {
+          playTone(523, 0.12, 'sine', 0.2);
+          setTimeout(() => playTone(659, 0.12, 'sine', 0.2), 100);
+          setTimeout(() => playTone(784, 0.2, 'sine', 0.25), 200);
+        },
+
+        playButtonHover() { playTone(1000, 0.04, 'sine', 0.06); },
+
+        startBgm() {
+          if (bgmNode) return;
+          const c = getCtx();
+          bgmGain = c.createGain();
+          bgmGain.gain.setValueAtTime(masterEnabled ? bgmVolume * 0.15 : 0, c.currentTime);
+          bgmGain.connect(c.destination);
+
+          const bassNotes = [130.81, 146.83, 164.81, 146.83, 130.81, 110, 130.81, 146.83];
+          const melodyNotes = [523, 0, 587, 0, 659, 0, 587, 0, 523, 0, 659, 0, 784, 0, 659, 0];
+          let noteIdx = 0;
+          let isBass = true;
+          const tempo = 280;
+
+          function scheduleNext() {
+            if (!bgmGain) return;
+            if (masterEnabled && bgmGain.gain.value !== bgmVolume * 0.15) {
+              bgmGain.gain.linearRampToValueAtTime(bgmVolume * 0.15, c.currentTime + 0.1);
+            } else if (!masterEnabled && bgmGain.gain.value !== 0) {
+              bgmGain.gain.linearRampToValueAtTime(0, c.currentTime + 0.1);
+            }
+
+            const freq = isBass ? bassNotes[noteIdx % bassNotes.length] : melodyNotes[noteIdx % melodyNotes.length];
+            if (freq > 0) {
+              const osc = c.createOscillator();
+              const noteGain = c.createGain();
+              osc.type = isBass ? 'sine' : 'triangle';
+              osc.frequency.setValueAtTime(freq, c.currentTime);
+              noteGain.gain.setValueAtTime(isBass ? 0.8 : 0.4, c.currentTime);
+              noteGain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + (tempo / 1000) * 0.9);
+              osc.connect(noteGain);
+              noteGain.connect(bgmGain);
+              osc.start();
+              osc.stop(c.currentTime + tempo / 1000);
+            }
+            noteIdx++;
+            if (noteIdx % 2 === 0) isBass = !isBass;
+            bgmNode = setTimeout(scheduleNext, tempo);
+          }
+          scheduleNext();
+        },
+
+        stopBgm() {
+          clearTimeout(bgmNode);
+          bgmNode = null;
+          if (bgmGain) { bgmGain.disconnect(); bgmGain = null; }
+        },
+
+        toggleMaster(force) {
+          if (typeof force === 'boolean') masterEnabled = force;
+          else masterEnabled = !masterEnabled;
+          const btn = document.getElementById('muteBtn');
+          if (btn) btn.textContent = masterEnabled ? '🔊' : '🔇';
+          if (bgmGain) {
+            const c = getCtx();
+            bgmGain.gain.linearRampToValueAtTime(masterEnabled ? bgmVolume * 0.15 : 0, c.currentTime + 0.1);
+          }
+          localStorage.setItem('xo_sound_enabled', masterEnabled);
+        },
+
+        setBgmVolume(v) {
+          bgmVolume = v / 100;
+          document.getElementById('soundBgmVal').textContent = v + '%';
+          if (bgmGain) {
+            const c = getCtx();
+            bgmGain.gain.linearRampToValueAtTime(masterEnabled ? bgmVolume * 0.15 : 0, c.currentTime + 0.1);
+          }
+          localStorage.setItem('xo_bgm_vol', v);
+        },
+
+        setSfxVolume(v) {
+          sfxVolume = v / 100;
+          document.getElementById('soundSfxVal').textContent = v + '%';
+          localStorage.setItem('xo_sfx_vol', v);
+        },
+
+        test(sound) {
+          switch(sound) {
+            case 'click': this.playClick(); break;
+            case 'place': this.playPlace('X'); setTimeout(() => this.playPlace('O'), 100); break;
+            case 'win': this.playWin(); break;
+            case 'lose': this.playLose(); break;
+            case 'draw': this.playDraw(); break;
+            case 'countdown': this.playCountdown(); break;
+          }
+        },
+
+        loadPreferences() {
+          const enabled = localStorage.getItem('xo_sound_enabled');
+          if (enabled !== null) masterEnabled = enabled === 'true';
+          const bgm = localStorage.getItem('xo_bgm_vol');
+          const sfx = localStorage.getItem('xo_sfx_vol');
+          if (bgm) { bgmVolume = bgm / 100; document.getElementById('soundBgm').value = bgm; document.getElementById('soundBgmVal').textContent = bgm + '%'; }
+          if (sfx) { sfxVolume = sfx / 100; document.getElementById('soundSfx').value = sfx; document.getElementById('soundSfxVal').textContent = sfx + '%'; }
+          document.getElementById('soundMaster').checked = masterEnabled;
+          const btn = document.getElementById('muteBtn');
+          if (btn) btn.textContent = masterEnabled ? '🔊' : '🔇';
+        },
+
+        init() {
+          this.loadPreferences();
+          this.startBgm();
+        }
+      };
+    })();
+
+    // --- NAVIGATION ---
+    function showPanel(id) {
+      Sound.playClick();
+      document.getElementById('mainMenu').style.display = 'none';
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function backToMenu() {
+      Sound.playClick();
+      socket.emit('matchmaking-cancel');
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('mainMenu').style.display = 'flex';
+      resetJoinPanel();
+      resetCreatePanel();
+    }
+
+    // --- BOT ---
+    function startBot() {
+      Sound.playClick();
+      gameMode = 'bot';
+      socket.emit('bot-start');
+    }
+
+    // --- MATCHMAKING ---
+    function cancelMatchmaking() {
+      Sound.playClick();
+      socket.emit('matchmaking-cancel');
+      backToMenu();
+    }
+
+    socket.on('matchmaking-waiting', () => {
+      document.getElementById('matchStatus').textContent = 'กำลังค้นหาคู่แข่ง...';
+    });
+
+    socket.on('match-found', ({ roomId, players, names }) => {
+      Sound.playMatchFound();
+      gameMode = 'match';
+      currentRoomId = roomId;
+      myMark = players[socket.id];
+      showGameScreen(players, names, roomId);
+    });
+
+    // --- CREATE ROOM ---
+    function createRoom() { Sound.playClick(); socket.emit('room-create'); }
+
+    socket.on('room-created', ({ roomId }) => {
+      Sound.playClick();
+      currentRoomId = roomId;
+      gameMode = 'room';
+      myMark = 'X';
+      document.getElementById('createRoomStatus').style.display = 'none';
+      document.querySelector('#createRoomPanel .menu-btn').style.display = 'none';
+      document.getElementById('createRoomInfo').style.display = 'flex';
+      document.getElementById('createdRoomId').textContent = roomId;
+    });
+
+    function copyRoomId() {
+      const id = document.getElementById('createdRoomId').textContent;
+      Sound.playClick();
+      navigator.clipboard.writeText(id).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ คัดลอกแล้ว!';
+        setTimeout(() => btn.textContent = '📋 คัดลอกรหัสห้อง', 2000);
+      });
+    }
+
+    function resetCreatePanel() {
+      document.getElementById('createRoomStatus').style.display = 'block';
+      document.querySelector('#createRoomPanel .menu-btn').style.display = 'block';
+      document.getElementById('createRoomInfo').style.display = 'none';
+      document.getElementById('createRoomWaiting').style.display = 'block';
+      document.getElementById('createRoomOpponent').style.display = 'none';
+      document.getElementById('createReadyBtn').style.display = 'none';
+      document.getElementById('createReadyBtn').disabled = false;
+      document.getElementById('createReadyBtn').textContent = '✅ พร้อม!';
+    }
+
+    // --- JOIN ROOM ---
+    function joinRoom() {
+      Sound.playClick();
+      const roomId = document.getElementById('joinRoomInput').value.trim().toUpperCase();
+      if (!roomId) return;
+      socket.emit('room-join', { roomId });
+    }
+
+    socket.on('room-error', (msg) => alert(msg));
+
+    socket.on('room-joined', ({ roomId, players, names }) => {
+      Sound.playClick();
+      currentRoomId = roomId;
+      gameMode = 'room';
+      myMark = players[socket.id];
+      document.getElementById('joinRoomInput').style.display = 'none';
+      document.querySelector('#joinRoomPanel .menu-btn').style.display = 'none';
+      document.getElementById('joinRoomInfo').style.display = 'flex';
+      showGameScreen(players, names, roomId);
+    });
+
+    function resetJoinPanel() {
+      document.getElementById('joinRoomInput').style.display = 'block';
+      document.getElementById('joinRoomInput').value = '';
+      document.querySelector('#joinRoomPanel .menu-btn').style.display = 'block';
+      document.getElementById('joinRoomInfo').style.display = 'none';
+      document.getElementById('joinRoomWaiting').style.display = 'block';
+      document.getElementById('joinRoomOpponent').style.display = 'none';
+      document.getElementById('joinReadyBtn').style.display = 'none';
+      document.getElementById('joinReadyBtn').disabled = false;
+      document.getElementById('joinReadyBtn').textContent = '✅ พร้อม!';
+    }
+
+    // --- READY ---
+    function playerReady() {
+      Sound.playClick();
+      socket.emit('player-ready', { roomId: currentRoomId });
+      const btn1 = document.getElementById('createReadyBtn');
+      const btn2 = document.getElementById('joinReadyBtn');
+      if (btn1) { btn1.disabled = true; btn1.textContent = '✅ พร้อมแล้ว!'; }
+      if (btn2) { btn2.disabled = true; btn2.textContent = '✅ พร้อมแล้ว!'; }
+    }
+
+    socket.on('opponent-ready', () => {
+      Sound.playClick();
+      const w1 = document.getElementById('createRoomWaiting');
+      const w2 = document.getElementById('joinRoomWaiting');
+      if (w1) w1.textContent = 'คู่แข่งพร้อมแล้ว! กดพร้อมเพื่อเริ่ม';
+      if (w2) w2.textContent = 'คู่แข่งพร้อมแล้ว! กดพร้อมเพื่อเริ่ม';
+    });
+
+    // --- COUNTDOWN ---
+    socket.on('countdown', (num) => {
+      if (num > 1) Sound.playCountdown();
+      else Sound.playGo();
+      const overlay = document.getElementById('countdownOverlay');
+      const el = document.getElementById('countdownNumber');
+      overlay.classList.add('active');
+      el.textContent = num;
+      el.style.animation = 'none';
+      el.offsetHeight;
+      el.style.animation = 'pulse 1s ease-in-out';
+    });
+
+    // --- GAME START ---
+    socket.on('game-start', (data) => {
+      document.getElementById('countdownOverlay').classList.remove('active');
+
+      if (gameMode === 'bot') {
+        myMark = data.mark;
+        currentRoomId = data.roomId;
+        setupBotGame(data);
+        return;
+      }
+
+      const players = data.players || data;
+      const firstTurn = data.firstTurn;
+
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('gameContainer').classList.add('active');
+
+      const playerIds = Object.keys(players);
+      const p1 = playerIds[0];
+      const p2 = playerIds[1];
+
+      document.getElementById('playerXName').textContent = p1 === socket.id ? 'คุณ' : 'คู่แข่ง';
+      document.getElementById('playerOName').textContent = p2 === socket.id ? 'คุณ' : 'คู่แข่ง';
+
+      isMyTurn = firstTurn === socket.id;
+      updateTurnIndicator();
+      resetBoard();
+    });
+
+    function showGameScreen(players, names, roomId) {
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('gameContainer').classList.add('active');
+
+      const playerIds = Object.keys(players);
+      const p1 = playerIds[0];
+      const p2 = playerIds[1];
+
+      const p1Name = names?.[p1] || (p1 === socket.id ? 'คุณ' : 'คู่แข่ง');
+      const p2Name = names?.[p2] || (p2 === socket.id ? 'คุณ' : 'คู่แข่ง');
+
+      document.getElementById('playerXName').textContent = p1Name;
+      document.getElementById('playerOName').textContent = p2Name;
+
+      if (gameMode === 'room') {
+        const w1 = document.getElementById('createRoomWaiting');
+        const w2 = document.getElementById('joinRoomWaiting');
+        const o1 = document.getElementById('createRoomOpponent');
+        const o2 = document.getElementById('joinRoomOpponent');
+        if (w1) w1.style.display = 'none';
+        if (o1) { o1.style.display = 'block'; o1.textContent = 'คู่แข่งเข้ามาแล้ว!'; }
+        if (w2) w2.style.display = 'none';
+        if (o2) { o2.style.display = 'block'; o2.textContent = 'เข้าห้องสำเร็จ!'; }
+        const r1 = document.getElementById('createReadyBtn');
+        const r2 = document.getElementById('joinReadyBtn');
+        if (r1) r1.style.display = 'block';
+        if (r2) r2.style.display = 'block';
+      }
+
+      isMyTurn = false;
+      updateTurnIndicator();
+      resetBoard();
+    }
+
+    function setupBotGame(data) {
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('gameContainer').classList.add('active');
+      document.getElementById('playerXName').textContent = 'คุณ';
+      document.getElementById('playerOName').textContent = 'บอท';
+      isMyTurn = data.yourTurn;
+      updateTurnIndicator();
+      resetBoard();
+    }
+
+    function resetBoard() {
+      document.querySelectorAll('.cell').forEach(c => {
+        c.textContent = '';
+        c.className = 'cell';
+      });
+    }
+
+    // --- BOARD INTERACTION ---
+    document.querySelectorAll('.cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const index = parseInt(cell.dataset.index);
+        if (cell.classList.contains('taken') || !isMyTurn) return;
+        Sound.playPlace(myMark);
+        if (gameMode === 'bot') {
+          socket.emit('bot-move', { roomId: currentRoomId, index });
+        } else {
+          socket.emit('make-move', { roomId: currentRoomId, index });
+        }
+      });
+    });
+
+    // --- UPDATE BOARD ---
+    socket.on('update-board', ({ board, lastMove, nextTurn }) => {
+      const cells = document.querySelectorAll('.cell');
+      board.forEach((mark, i) => {
+        cells[i].textContent = mark || '';
+        cells[i].className = 'cell';
+        if (mark) {
+          cells[i].classList.add('taken');
+          cells[i].classList.add(mark === 'X' ? 'x-mark' : 'o-mark');
+        }
+      });
+      // Play place sound for the last move
+      if (lastMove !== null && lastMove !== undefined) {
+        const placedMark = board[lastMove];
+        if (placedMark) Sound.playPlace(placedMark);
+      }
+      isMyTurn = nextTurn === socket.id;
+      updateTurnIndicator();
+    });
+
+    // --- GAME OVER ---
+    socket.on('game-over', ({ result, board }) => {
+      const cells = document.querySelectorAll('.cell');
+      board.forEach((mark, i) => {
+        cells[i].textContent = mark || '';
+        cells[i].className = 'cell';
+        if (mark) {
+          cells[i].classList.add('taken');
+          cells[i].classList.add(mark === 'X' ? 'x-mark' : 'o-mark');
+        }
+      });
+      if (result.line && result.line.length) {
+        result.line.forEach(i => cells[i].classList.add('win'));
+      }
+
+      const resultText = document.getElementById('resultText');
+      const resultEmoji = document.getElementById('resultEmoji');
+      const resultSub = document.getElementById('resultSub');
+      const overlay = document.getElementById('resultOverlay');
+
+      overlay.classList.remove('win-result', 'lose-result', 'draw-result');
+
+      if (result.winner === 'draw') {
+        resultText.textContent = 'เสมอ!';
+        resultText.className = 'result-text draw';
+        resultEmoji.textContent = '🤝';
+        resultSub.textContent = 'ทั้งสองฝ่ายเสมอกัน!';
+        overlay.classList.add('draw-result');
+        Sound.playDraw();
+      } else if (result.winner === myMark) {
+        resultText.textContent = '🎉 คุณชนะ!';
+        resultText.className = 'result-text win';
+        resultEmoji.textContent = '🏆';
+        resultSub.textContent = 'ยอดเยี่ยมมาก!';
+        overlay.classList.add('win-result');
+        Sound.playWin();
+      } else {
+        resultText.textContent = 'คุณแพ้!';
+        resultText.className = 'result-text lose';
+        resultEmoji.textContent = '💀';
+        resultSub.textContent = 'ลองใหม่อีกครั้งนะ!';
+        overlay.classList.add('lose-result');
+        Sound.playLose();
+      }
+
+      setTimeout(() => {
+        overlay.classList.add('active');
+        if (result.winner === myMark || result.winner === 'draw') {
+          startResultParticles(result.winner === myMark ? 'win' : 'draw');
+        }
+      }, 600);
+      if (currentUser) fetchProfile();
+    });
+
+    socket.on('opponent-disconnected', () => {
+      Sound.playDraw();
+      const resultText = document.getElementById('resultText');
+      const resultEmoji = document.getElementById('resultEmoji');
+      const resultSub = document.getElementById('resultSub');
+      const overlay = document.getElementById('resultOverlay');
+      overlay.classList.remove('win-result', 'lose-result', 'draw-result');
+      resultText.textContent = 'คู่แข่งออกจากเกม';
+      resultText.className = 'result-text draw';
+      resultEmoji.textContent = '🚪';
+      resultSub.textContent = '';
+      overlay.classList.add('draw-result');
+      overlay.classList.add('active');
+    });
+
+    // --- HELPERS ---
+    function updateTurnIndicator() {
+      const el = document.getElementById('turnIndicator');
+      const xBadge = document.getElementById('playerXBadge');
+      const oBadge = document.getElementById('playerOBadge');
+
+      if (isMyTurn) {
+        el.textContent = 'ถึงตาคุณแล้ว!';
+        el.className = 'turn-indicator my-turn';
+      } else {
+        el.textContent = 'รอคู่แข่ง...';
+        el.className = 'turn-indicator';
+      }
+
+      const xActive = (isMyTurn && myMark === 'X') || (!isMyTurn && myMark === 'O');
+      const oActive = (isMyTurn && myMark === 'O') || (!isMyTurn && myMark === 'X');
+      xBadge.classList.toggle('active', xActive);
+      oBadge.classList.toggle('active', oActive);
+    }
+
+    function playAgain() {
+      Sound.playClick();
+      stopResultParticles();
+      document.getElementById('resultOverlay').classList.remove('active', 'win-result', 'lose-result', 'draw-result');
+      document.getElementById('gameContainer').classList.remove('active');
+      document.getElementById('mainMenu').style.display = 'flex';
+      resetBoard();
+      currentRoomId = null;
+      myMark = null;
+      isMyTurn = false;
+      gameMode = null;
+    }
+
+    // --- RESULT PARTICLES ---
+    let resultParticleAnimId = null;
+
+    function startResultParticles(type) {
+      const canvas = document.getElementById('resultCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = type === 'win'
+        ? ['#6bcb77', '#4d96ff', '#ffd93d', '#ff6b6b', '#aa44ff', '#00f2fe']
+        : ['#ffd93d', '#ff9f43', '#ff6b6b', '#ffd700'];
+      const emoji = type === 'win' ? ['🎉', '⭐', '✨', '🏆', '💫'] : ['✌️', '🤝', '✨'];
+
+      for (let i = 0; i < 80; i++) {
+        const useEmoji = Math.random() > 0.6;
+        particles.push({
+          x: canvas.width / 2 + (Math.random() - 0.5) * 300,
+          y: type === 'win' ? canvas.height + 20 : canvas.height / 2,
+          vx: (Math.random() - 0.5) * 12,
+          vy: type === 'win' ? -(Math.random() * 8 + 4) : (Math.random() - 0.5) * 6,
+          size: useEmoji ? (Math.random() * 16 + 14) : (Math.random() * 6 + 2),
+          color: colors[Math.floor(Math.random() * colors.length)],
+          emoji: useEmoji ? emoji[Math.floor(Math.random() * emoji.length)] : null,
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.15,
+          gravity: type === 'win' ? 0.08 : 0.03,
+          friction: 0.99,
+          life: 1,
+          decay: Math.random() * 0.008 + 0.003,
+        });
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = 0;
+        for (const p of particles) {
+          if (p.life <= 0) continue;
+          alive++;
+          p.vx *= p.friction;
+          p.vy *= p.friction;
+          p.vy += p.gravity;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rotSpeed;
+          p.life -= p.decay;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation);
+          ctx.globalAlpha = p.life;
+
+          if (p.emoji) {
+            ctx.font = `${p.size}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.emoji, 0, 0);
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            // Glow
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 10;
+          }
+          ctx.restore();
+        }
+        if (alive > 0) {
+          resultParticleAnimId = requestAnimationFrame(animate);
+        }
+      }
+      animate();
+    }
+
+    function stopResultParticles() {
+      if (resultParticleAnimId) {
+        cancelAnimationFrame(resultParticleAnimId);
+        resultParticleAnimId = null;
+      }
+      const canvas = document.getElementById('resultCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    // --- LEADERBOARD ---
+    async function showLeaderboard() {
+      Sound.playClick();
+      showPanel('leaderboardPanel');
+      await fetchLeaderboard();
+    }
+
+    function switchLbTab(mode) {
+      Sound.playClick();
+      lbMode = mode;
+      document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      fetchLeaderboard();
+    }
+
+    async function fetchLeaderboard() {
+      const list = document.getElementById('lbList');
+      list.innerHTML = '<div class="spinner" style="margin:2rem auto;"></div>';
+      try {
+        const res = await fetch('/api/leaderboard');
+        const data = await res.json();
+        const items = lbMode === 'weekly' ? data.weekly : data.allTime;
+
+        if (items.length === 0) {
+          list.innerHTML = '<div class="lb-empty">ยังไม่มีข้อมูล</div>';
+          return;
+        }
+
+        list.innerHTML = items.map((p, i) => {
+          const rank = i + 1;
+          const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : 'rn';
+          const name = p.display_name || p.username;
+          const wins = lbMode === 'weekly' ? p.wins : p.total_wins;
+          const losses = lbMode === 'weekly' ? p.losses : p.total_losses;
+          const draws = lbMode === 'weekly' ? p.draws : p.total_draws;
+          const points = lbMode === 'weekly' ? p.points : p.total_points;
+          return `
+            <div class="lb-item">
+              <div class="lb-rank ${rankClass}">${rank}</div>
+              <div class="lb-avatar">${p.avatar_url ? `<img src="${p.avatar_url}">` : name.charAt(0).toUpperCase()}</div>
+              <div class="lb-name"><span>${name}</span><small>@${p.username}</small></div>
+              <div class="lb-score">
+                <div class="lb-points">${points} แต้ม</div>
+                <div class="lb-detail">ชนะ ${wins} • แพ้ ${losses} • เสมอ ${draws}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const weekStart = new Date(data.weekStart);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        document.getElementById('lbResetInfo').textContent =
+          `รีเซ็ตทุกวันจันทร์ • สัปดาห์นี้: ${weekStart.toLocaleDateString('th-TH')} - ${weekEnd.toLocaleDateString('th-TH')}`;
+      } catch {
+        list.innerHTML = '<div class="lb-empty">โหลดข้อมูลไม่สำเร็จ</div>';
+      }
+    }
+
+    // --- LOADING HELPERS ---
+    function showLoading(text) {
+      const overlay = document.getElementById('loadingOverlay');
+      document.getElementById('loadingText').textContent = text || 'กำลังโหลด...';
+      overlay.classList.add('active');
+    }
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('active');
+    }
+
+    // --- PROFILE PANEL ---
+    function showProfilePanel() {
+      if (!currentUser) return;
+      Sound.playClick();
+      document.getElementById('mainMenu').style.display = 'none';
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('profilePanel').classList.add('active');
+      // Fill form with current data
+      document.getElementById('profileDisplayName').value = currentUser.display_name || '';
+      document.getElementById('profileEmail').value = currentUser.email || '';
+      document.getElementById('profileSuccess').textContent = '';
+      // Set avatar
+      const avatarEl = document.getElementById('profileAvatar');
+      if (currentUser.avatar_url) {
+        avatarEl.innerHTML = `<img src="${currentUser.avatar_url}">`;
+      } else {
+        avatarEl.textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase();
+      }
+    }
+
+    let pendingAvatarUrl = null;
+
+    function openCloudinaryWidget() {
+      if (typeof cloudinary === 'undefined') {
+        alert('กำลังโหลด Cloudinary กรุณารอสักครู่...');
+        return;
+      }
+      const widget = cloudinary.createUploadWidget({
+        cloudName: 'dwvx7p2bu',
+        uploadPreset: 'xo_game_profiles',
+        sources: ['local', 'camera'],
+        folder: 'xo-game/avatars',
+        cropping: true,
+        croppingAspectRatio: 1,
+        croppingShowDimensions: true,
+        maxFileSize: 2000000,
+        resourceType: 'image',
+        clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
+      }, (error, result) => {
+        if (error) {
+          console.error('Cloudinary error:', error);
+          return;
+        }
+        if (result.event === 'success') {
+          pendingAvatarUrl = result.info.secure_url;
+          const avatarEl = document.getElementById('profileAvatar');
+          avatarEl.innerHTML = `<img src="${pendingAvatarUrl}">`;
+        }
+      });
+      widget.open();
+    }
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const btn = document.getElementById('profileSaveBtn');
+      const successEl = document.getElementById('profileSuccess');
+      btn.disabled = true;
+      btn.textContent = 'กำลังบันทึก...';
+      successEl.textContent = '';
+      try {
+        const token = localStorage.getItem('xo_token');
+        const body = {};
+        const newName = document.getElementById('profileDisplayName').value.trim();
+        if (newName) body.display_name = newName;
+        if (pendingAvatarUrl) body.avatar_url = pendingAvatarUrl;
+        if (Object.keys(body).length === 0) { btn.disabled = false; btn.textContent = '💾 บันทึก'; return; }
+        const res = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) { successEl.style.color = '#ff6b6b'; successEl.textContent = data.error || 'เกิดข้อผิดพลาด'; return; }
+        saveAuth(token, data.player);
+        Sound.playWin();
+        successEl.style.color = '#6bcb77';
+        successEl.textContent = '✅ บันทึกสำเร็จ!';
+        pendingAvatarUrl = null;
+      } catch (err) {
+        successEl.style.color = '#ff6b6b';
+        successEl.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 บันทึก';
+      }
+    }
+
+    // --- GOOGLE SIGN-IN ---
+    function initGoogleSignIn() {
+      if (typeof google === 'undefined' || !google.accounts) {
+        setTimeout(initGoogleSignIn, 500);
+        return;
+      }
+      google.accounts.id.initialize({
+        client_id: '163655561220-30vjtkai0elpesd6ekpj2f87ma5anogf.apps.googleusercontent.com',
+        callback: handleGoogleCredential,
+        auto_select: false,
+      });
+      const loginBtn = document.getElementById('googleSignInBtn');
+      if (loginBtn) {
+        google.accounts.id.renderButton(loginBtn, {
+          theme: 'filled_black',
+          size: 'large',
+          width: loginBtn.parentElement.clientWidth || 300,
+          text: 'signin_with',
+          shape: 'pill',
+        });
+      }
+      const registerBtn = document.getElementById('googleSignInBtnRegister');
+      if (registerBtn) {
+        google.accounts.id.renderButton(registerBtn, {
+          theme: 'filled_black',
+          size: 'large',
+          width: registerBtn.parentElement.clientWidth || 300,
+          text: 'signup_with',
+          shape: 'pill',
+        });
+      }
+    }
+
+    async function handleGoogleCredential(response) {
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      loadingText.textContent = 'กำลังเข้าสู่ระบบ...';
+      overlay.classList.add('active');
+      try {
+        const res = await fetch('/api/google-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          overlay.classList.remove('active');
+          document.getElementById('googleLoginError').textContent = data.error || 'เกิดข้อผิดพลาด';
+          return;
+        }
+        saveAuth(data.token, data.player);
+        loadingText.textContent = 'เข้าสู่ระบบสำเร็จ!';
+        Sound.playWin();
+        await new Promise(r => setTimeout(r, 600));
+        overlay.classList.remove('active');
+        backToMenu();
+      } catch (err) {
+        overlay.classList.remove('active');
+        document.getElementById('googleLoginError').textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      }
+    }
+
+    // --- BUTTON HOVER SOUNDS ---
+    document.addEventListener('mouseover', (e) => {
+      const btn = e.target.closest('.menu-btn, .back-btn, .copy-btn, .ready-btn, .play-again-btn, .logout-btn, .sound-test-btn, .lb-tab');
+      if (btn) Sound.playButtonHover();
+    });
+
+    // Init
+    initGoogleSignIn();
+    updateAuthUI();
+    Sound.init();
+  </script>
+
+  <!-- ===== 3D XO PARTICLE BACKGROUND ===== -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    let particles = [];
+    let floatingMarks = []; // X and O floating
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Stars / dots
+    for (let i = 0; i < 120; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        z: Math.random() * 3 + 0.5, // depth
+        size: Math.random() * 2 + 0.5,
+        speedX: (Math.random() - 0.5) * 0.3,
+        speedY: (Math.random() - 0.5) * 0.3,
+        opacity: Math.random() * 0.5 + 0.1,
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+
+    // Floating X and O marks
+    const markChars = ['X', 'O'];
+    const markColors = ['rgba(255,107,107,', 'rgba(77,150,255,'];
+    for (let i = 0; i < 25; i++) {
+      const isX = Math.random() > 0.5;
+      floatingMarks.push({
+        char: isX ? 'X' : 'O',
+        colorIdx: isX ? 0 : 1,
+        x: Math.random() * W,
+        y: Math.random() * H,
+        z: Math.random() * 2 + 0.5,
+        size: Math.random() * 30 + 15,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.015,
+        speedX: (Math.random() - 0.5) * 0.5,
+        speedY: (Math.random() - 0.5) * 0.5,
+        opacity: Math.random() * 0.08 + 0.02,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: Math.random() * 0.02 + 0.01
+      });
+    }
+
+    // Connection lines between close particles
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            const alpha = (1 - dist / 120) * 0.06;
+            ctx.strokeStyle = `rgba(100,100,255,${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, W, H);
+
+      // Draw grid floor effect (subtle)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(100,100,255,0.02)';
+      ctx.lineWidth = 0.5;
+      const gridSize = 60;
+      const time = Date.now() * 0.0002;
+      const vanishY = H * 0.4;
+      for (let x = 0; x < W; x += gridSize) {
+        const offsetX = Math.sin(time + x * 0.01) * 10;
+        ctx.beginPath();
+        ctx.moveTo(x + offsetX, vanishY);
+        ctx.lineTo(x + offsetX * 3, H);
+        ctx.stroke();
+      }
+      for (let y = vanishY; y < H; y += gridSize * 0.6) {
+        const persp = (y - vanishY) / (H - vanishY);
+        ctx.globalAlpha = persp * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Draw connections
+      drawConnections();
+
+      // Update & draw particles
+      for (const p of particles) {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.pulse += 0.02;
+
+        if (p.x < 0) p.x = W;
+        if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H;
+        if (p.y > H) p.y = 0;
+
+        const pulseOpacity = p.opacity * (0.7 + 0.3 * Math.sin(p.pulse));
+        const depthScale = 0.5 + p.z * 0.25;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * depthScale, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(150,150,255,${pulseOpacity})`;
+        ctx.fill();
+
+        // Glow for bigger particles
+        if (p.size > 1.5) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * depthScale * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(100,100,255,${pulseOpacity * 0.1})`;
+          ctx.fill();
+        }
+      }
+
+      // Update & draw floating X/O marks
+      for (const m of floatingMarks) {
+        m.x += m.speedX;
+        m.y += m.speedY;
+        m.rot += m.rotSpeed;
+        m.pulse += m.pulseSpeed;
+
+        if (m.x < -100) m.x = W + 50;
+        if (m.x > W + 100) m.x = -50;
+        if (m.y < -100) m.y = H + 50;
+        if (m.y > H + 100) m.y = -50;
+
+        const alpha = m.opacity * (0.6 + 0.4 * Math.sin(m.pulse));
+        const col = markColors[m.colorIdx];
+
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.rot);
+        ctx.font = `bold ${m.size}px 'Segoe UI', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = col + alpha + ')';
+        ctx.shadowColor = col + (alpha * 2) + ')';
+        ctx.shadowBlur = 20;
+        ctx.fillText(m.char, 0, 0);
+        ctx.restore();
+      }
+
+      // Mouse parallax effect
+      if (mouseX !== null && mouseY !== null) {
+        const mx = (mouseX - W / 2) / W;
+        const my = (mouseY - H / 2) / H;
+        for (const p of particles) {
+          p.x += mx * 0.05 * p.z;
+          p.y += my * 0.05 * p.z;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // Mouse tracking for parallax
+    let mouseX = null, mouseY = null;
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    animate();
+  })();
+  </script>
+  </div><!-- end content-wrapper -->
+</body>
+</html>
