@@ -1330,7 +1330,7 @@
     });
 
     function showGameScreen(players, names, roomId) {
-      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.style.display = 'none');
       document.getElementById('mainMenu').style.display = 'none';
       document.getElementById('gameContainer').classList.add('active');
 
@@ -1345,14 +1345,6 @@
       document.getElementById('playerOName').textContent = p2Name;
 
       if (gameMode === 'room') {
-        const w1 = document.getElementById('createRoomWaiting');
-        const w2 = document.getElementById('joinRoomWaiting');
-        const o1 = document.getElementById('createRoomOpponent');
-        const o2 = document.getElementById('joinRoomOpponent');
-        if (w1) w1.style.display = 'none';
-        if (o1) { o1.style.display = 'block'; o1.textContent = 'คู่แข่งเข้ามาแล้ว!'; }
-        if (w2) w2.style.display = 'none';
-        if (o2) { o2.style.display = 'block'; o2.textContent = 'เข้าห้องสำเร็จ!'; }
         const r1 = document.getElementById('createReadyBtn');
         const r2 = document.getElementById('joinReadyBtn');
         if (r1) r1.style.display = 'block';
