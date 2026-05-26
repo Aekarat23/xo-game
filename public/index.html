@@ -968,9 +968,13 @@
       let bgmNode = null;
       let bgmGain = null;
 
+      let ctxResumePending = false;
       function getCtx() {
         if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended') ctx.resume();
+        if (ctx.state === 'suspended' && !ctxResumePending) {
+          ctxResumePending = true;
+          ctx.resume().finally(() => { ctxResumePending = false; });
+        }
         return ctx;
       }
 
