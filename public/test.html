@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>Socket Test</title></head>
+<body>
+<h2>Socket.IO Test</h2>
+<pre id="log"></pre>
+<button onclick="test()">Send Test</button>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const log = document.getElementById('log');
+  function addLog(msg) {
+    log.textContent += new Date().toISOString() + ' ' + msg + '\n';
+    console.log(msg);
+  }
+  const socket = io({ transports: ['polling', 'websocket'] });
+  socket.on('connect', () => addLog('CONNECTED: ' + socket.id));
+  socket.on('disconnect', () => addLog('DISCONNECTED'));
+  socket.on('connect_error', (e) => addLog('CONNECT_ERROR: ' + e.message));
+  socket.on('matchmaking-waiting', () => addLog('MATCHMAKING_WAITING'));
+  socket.on('match-found', (d) => addLog('MATCH_FOUND: ' + JSON.stringify(d)));
+  socket.on('auth-required', (d) => addLog('AUTH_REQUIRED: ' + JSON.stringify(d)));
+  function test() {
+    addLog('Sending matchmaking-join...');
+    socket.emit('matchmaking-join');
+  }
+</script>
+</body>
+</html>
