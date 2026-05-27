@@ -968,12 +968,19 @@
       let bgmNode = null;
       let bgmGain = null;
 
-      let ctxResumePending = false;
+      let userInteracted = false;
       function getCtx() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended' && !ctxResumePending) {
-          ctxResumePending = true;
-          ctx.resume().finally(() => { ctxResumePending = false; });
+        if (!ctx) {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const resume = () => {
+            if (ctx && ctx.state === 'suspended') {
+              userInteracted = true;
+              ctx.resume();
+            }
+          };
+          document.addEventListener('click', resume, { once: true });
+          document.addEventListener('touchstart', resume, { once: true });
+          document.addEventListener('keydown', resume, { once: true });
         }
         return ctx;
       }
