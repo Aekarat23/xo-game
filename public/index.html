@@ -1271,6 +1271,7 @@
     // --- READY ---
     function playerReady() {
       Sound.playClick();
+      console.log('[CLIENT] player-ready emitted, roomId:', currentRoomId, 'socket.id:', socket.id);
       socket.emit('player-ready', { roomId: currentRoomId });
       const btn1 = document.getElementById('createReadyBtn');
       const btn2 = document.getElementById('joinReadyBtn');
@@ -1280,10 +1281,11 @@
 
     socket.on('opponent-ready', () => {
       Sound.playClick();
-      const w1 = document.getElementById('createRoomWaiting');
-      const w2 = document.getElementById('joinRoomWaiting');
-      if (w1) w1.textContent = 'คู่แข่งพร้อมแล้ว! กดพร้อมเพื่อเริ่ม';
-      if (w2) w2.textContent = 'คู่แข่งพร้อมแล้ว! กดพร้อมเพื่อเริ่ม';
+      const el = document.getElementById('turnIndicator');
+      if (el) {
+        el.textContent = 'คู่แข่งพร้อมแล้ว! กดพร้อมเพื่อเริ่ม';
+        el.className = 'turn-indicator my-turn';
+      }
     });
 
     // --- COUNTDOWN ---
@@ -1313,7 +1315,7 @@
       const players = data.players || data;
       const firstTurn = data.firstTurn;
 
-      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.panel, .leaderboard-panel').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
       document.getElementById('mainMenu').style.display = 'none';
       document.getElementById('gameContainer').classList.add('active');
 

@@ -277,8 +277,10 @@ io.on('connection', (socket) => {
     const room = rooms[roomId];
     if (!room) return;
     room.ready[socket.id] = true;
+    console.log(`[READY] ${socket.id} ready in ${roomId}, players: ${room.players.join(',')}, ready: ${JSON.stringify(room.ready)}`);
 
     if (room.players.length === 2 && room.players.every(p => room.ready[p])) {
+      console.log(`[READY] Both ready! Starting countdown for ${roomId}`);
       let count = 5;
       io.to(roomId).emit('countdown', count);
       room.countdown = setInterval(() => {
